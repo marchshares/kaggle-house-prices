@@ -26,11 +26,19 @@ def drop_str_cols(df) -> pd.DataFrame:
 def print_cols_by_missing(df, n=20):
     """ Print n columns with percentage of missing values by descending """
 
-    cols_by_missing = round(df.isna().sum() / df.shape[0], 4).sort_values(ascending=False)
+    cols_by_missing = round(df.isna().sum() / df.shape[0] * 100, 2).sort_values(ascending=False)
 
     print("Row numbers: ", df.shape[0])
-    print("Column name\t Percentage of missing values")
+    print("Column name\t % of missing values")
     print(cols_by_missing.head(n))
+
+
+def get_cols_by_missing(df, n=20):
+    """ Get n columns with percentage of missing values by descending """
+
+    cols_by_missing = round(df.isna().sum() / df.shape[0] * 100, 2).sort_values(ascending=False)
+
+    return pd.DataFrame(cols_by_missing.head(n), columns=['% of missing values'])
 
 
 def drop_cols_with_missing_more_threshold(df, threshold_of_missing) -> (pd.DataFrame, list):
