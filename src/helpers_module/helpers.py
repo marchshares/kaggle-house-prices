@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import xgboost as xgb
 
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.impute import SimpleImputer, MissingIndicator
@@ -21,6 +22,18 @@ def drop_str_cols(df) -> pd.DataFrame:
     """ Drop all strings columns and return DataFrame """
 
     return df.select_dtypes(exclude=['object'])
+
+
+def get_unique_values_by_columns(df):
+    ar = []
+    for col in get_str_cols(df):
+        ar.append(
+            (col, df[col].nunique(), list(df[col].unique()))
+        )
+
+    return pd.DataFrame(ar, columns=['Column', 'nunique', 'unique']) \
+        .set_index('Column') \
+        .sort_values('nunique', ascending=False)
 
 
 def print_cols_by_missing(df, n=20):
@@ -69,8 +82,8 @@ def encode_with_labels(df) -> pd.DataFrame:
 
     encoder = LabelEncoder()
 
-    encoded_df = pd.DataFrame()
-    for col in df.columns:
+    encoded_df = df.copy()
+    for col in get_str_cols(df):
         encoded_df[col] = encoder.fit_transform(df[col])
 
     return encoded_df
@@ -93,35 +106,28 @@ def encode_with_labels_and_impute(df, strategy='mean') -> pd.DataFrame:
     return impute(df, strategy=strategy)
 
 
-def encode_with_one_hot(dfs, n=10) -> pd.DataFrame:
-    """ Encode with one hot encoding.
-        The 1st df in dfs is provider for categories
-        n - threshold for unique values in categories (if count > n just drop column)
-        Will drop all original columns
+def encode_with_one_hot(df, n=None) -> pd.DataFrame:
+    """ Encode categorical columns with one hot encoding.
+        n - threshold for unique values in categories (if unique count > n just drop column)
+        Will drop all original categorical columns
     """
-
-    main_df = dfs[0]
-    one_hot_dfs = [pd.DataFrame() for i in range(len(dfs))]
 
     encoder = OneHotEncoder(sparse=False)
 
-    str_columns = get_str_cols(main_df)
+    res_one_hot_df = pd.DataFrame()
+    str_columns = get_str_cols(df)
     for col in str_columns:
-        if main_df[col].nunique() < n:
-            encoder.fit(main_df[col].values.reshape(-1, 1))
+        if n is None or df[col].nunique() < n:
+            encoder.fit(df[col].values.reshape(-1, 1))
 
             categories_count = len(encoder.categories_[0])
             col_names = [col + "_" + str(i) for i in range(categories_count)]
 
-            for i in range(len(dfs)):
-                df = dfs[i]
-                one_hot_data = encoder.transform(df[col].values.reshape(-1, 1))
+            one_hot_data = encoder.transform(df[col].values.reshape(-1, 1))
+            one_hot_df = pd.DataFrame(one_hot_data, columns=col_names).astype('int')
 
-                one_hot_df = pd.DataFrame(one_hot_data, columns=col_names).astype('int')
-                one_hot_dfs[i] = pd.concat([one_hot_dfs[i], one_hot_df], axis=1)
+            res_one_hot_df = pd.concat([res_one_hot_df, one_hot_df], axis=1, copy=False)
 
-    for i in range(len(dfs)):
-        dfs[i] = pd.concat([dfs[i], one_hot_dfs[i]], axis=1)
-        dfs[i].drop(columns=str_columns, inplace=True)
+    df_cut = df.drop(columns=str_columns)
 
-    return dfs
+    return pd.concat([df_cut, res_one_hot_df], axis=1)
