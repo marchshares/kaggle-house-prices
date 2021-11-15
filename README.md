@@ -1,4 +1,4 @@
-# House Prices - Advanced Regression Techniques
+# House Prices - Advanced Regression Techniques (TOP 10% Kaggle)
 
 Repository for source code of kaggle competition: [House Prices: Advanced Regression Techniques](https://www.kaggle.com/c/house-prices-advanced-regression-techniques)
 
